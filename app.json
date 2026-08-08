@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "loci-implementation",
-    "slug": "loci-implementation",
+    "name": "loci",
+    "slug": "loci",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "lociimplementation",
+    "scheme": "loci",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true
