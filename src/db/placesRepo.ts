@@ -1,6 +1,7 @@
 import { getDb } from './client';
 import { buildListQuery, ListPlacesOptions } from './queries';
 import type { Place, Photo, NewPlaceInput } from '../types';
+import type { SQLiteBindValue } from 'expo-sqlite';
 
 function nowIso(): string {
   return new Date().toISOString();
@@ -45,7 +46,7 @@ export function createPlace(input: NewPlaceInput, userId: string | null): Place 
 export function listPlaces(options: ListPlacesOptions): Place[] {
   const db = getDb();
   const { sql, params } = buildListQuery(options);
-  const rows = db.getAllSync<any>(sql, params as any[]);
+  const rows = db.getAllSync<any>(sql, params as SQLiteBindValue[]);
   return rows.map(rowToPlace);
 }
 
