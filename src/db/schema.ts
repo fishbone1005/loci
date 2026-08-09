@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS photos (
   id TEXT PRIMARY KEY NOT NULL,
   place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
   storage_path TEXT,
-  local_uri TEXT NOT NULL,
+  local_uri TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   synced INTEGER NOT NULL DEFAULT 0
 );

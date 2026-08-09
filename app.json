@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "loci",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true
     },
@@ -34,7 +34,21 @@
           "backgroundColor": "#ffffff"
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "장소를 기록하려면 사진첩 접근 권한이 필요해요.",
+          "cameraPermission": "장소를 기록하려면 카메라 접근 권한이 필요해요."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "현재 위치로 주소를 자동 입력하려면 위치 권한이 필요해요.",
+          "locationAlwaysAndWhenInUsePermission": "현재 위치로 주소를 자동 입력하려면 위치 권한이 필요해요."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

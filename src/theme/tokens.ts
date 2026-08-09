@@ -8,6 +8,11 @@ export const colors = {
   sageOlive: '#7E8566',
   mist: '#DED5C2',
   wine: '#5C2430',
+  muted: '#8A8073',
+  frame: '#EADFC6',
+  sand: '#E3D7BD',
+  inkSoft: '#5C554A',
+  sepia: '#4A3728',
 } as const;
 
 export const fonts = {

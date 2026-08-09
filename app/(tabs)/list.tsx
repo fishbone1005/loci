@@ -1,10 +1,11 @@
 // app/(tabs)/list.tsx
 import { useCallback, useState } from 'react';
-import { View, Text, TextInput, FlatList, Pressable, StyleSheet } from 'react-native';
+import { View, Text, TextInput, FlatList, Image, Pressable, StyleSheet } from 'react-native';
 import { useFocusEffect, router } from 'expo-router';
-import { colors } from '../../src/theme/tokens';
+import { colors, fonts, spacing } from '../../src/theme/tokens';
 import { listPlaces } from '../../src/db/placesRepo';
-import type { Place } from '../../src/types';
+import { usePhotoUri } from '../../src/storage/photoFiles';
+import type { Photo, PlaceListItem } from '../../src/types';
 
 type MonthFilter = 'all' | 'this' | 'last';
 
@@ -15,8 +16,19 @@ function monthRange(offset: number): { dateFrom: string; dateTo: string } {
   return { dateFrom: start.toISOString(), dateTo: end.toISOString() };
 }
 
+function stampDate(iso: string): string {
+  const date = new Date(iso);
+  return `${date.getMonth() + 1}.${date.getDate()}`;
+}
+
+function Thumb({ photo }: { photo: Photo | null }) {
+  const uri = usePhotoUri(photo);
+  if (!uri) return <View style={styles.thumb} />;
+  return <Image source={{ uri }} style={styles.thumb} />;
+}
+
 export default function ListScreen() {
-  const [places, setPlaces] = useState<Place[]>([]);
+  const [places, setPlaces] = useState<PlaceListItem[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
   const [monthFilter, setMonthFilter] = useState<MonthFilter>('all');
@@ -56,7 +68,7 @@ export default function ListScreen() {
         <Pressable onPress={() => setSort('name')}>
           <Text style={sort === 'name' ? styles.filterActive : styles.filter}>이름순</Text>
         </Pressable>
-        <View style={{ width: 16 }} />
+        <View style={{ width: spacing.md }} />
         <Pressable onPress={() => setMonthFilter('all')}>
           <Text style={monthFilter === 'all' ? styles.filterActive : styles.filter}>전체</Text>
         </Pressable>
@@ -74,9 +86,12 @@ export default function ListScreen() {
         contentContainerStyle={styles.list}
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => router.push(`/place/${item.id}`)}>
-            <View style={styles.thumb} />
+            <Thumb photo={item.thumb} />
             <View style={{ flex: 1 }}>
-              <Text style={styles.cardName}>{item.name}</Text>
+              <View style={styles.cardTopRow}>
+                <Text style={styles.cardName}>{item.name}</Text>
+                <Text style={styles.cardDate}>{stampDate(item.createdAt)}</Text>
+              </View>
               <Text style={styles.cardAddr}>{item.address}</Text>
               <Text style={styles.cardMemo} numberOfLines={2}>
                 {item.memo}
@@ -101,15 +116,23 @@ const styles = StyleSheet.create({
   },
   title: { fontSize: 24, color: colors.ink },
   account: { fontSize: 12, color: colors.sageOlive },
-  search: { marginHorizontal: 18, marginTop: 10, borderBottomWidth: 1, borderBottomColor: colors.mist, paddingVertical: 8 },
+  search: {
+    marginHorizontal: 18,
+    marginTop: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.mist,
+    paddingVertical: spacing.sm,
+  },
   filterRow: { flexDirection: 'row', gap: 14, paddingHorizontal: 18, paddingTop: 10, flexWrap: 'wrap' },
-  filter: { fontSize: 12, color: '#8A8073' },
+  filter: { fontSize: 12, color: colors.muted },
   filterActive: { fontSize: 12, color: colors.ink, borderBottomWidth: 1, borderBottomColor: colors.gold },
   list: { padding: 18, gap: 12 },
   card: { flexDirection: 'row', gap: 12, borderBottomWidth: 1, borderBottomColor: colors.mist, paddingBottom: 12 },
-  thumb: { width: 58, height: 58, backgroundColor: '#E3D7BD', borderRadius: 2 },
-  cardName: { fontSize: 15, color: colors.ink },
+  thumb: { width: 58, height: 58, backgroundColor: colors.sand, borderRadius: 2 },
+  cardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
+  cardName: { fontSize: 15, color: colors.ink, flexShrink: 1 },
+  cardDate: { fontFamily: fonts.mono, fontSize: 11, color: colors.gold, marginLeft: spacing.sm },
   cardAddr: { fontSize: 11, color: colors.sageOlive },
-  cardMemo: { fontSize: 12, color: '#5c554a' },
-  empty: { textAlign: 'center', color: '#8A8073', marginTop: 40 },
+  cardMemo: { fontSize: 12, color: colors.inkSoft },
+  empty: { textAlign: 'center', color: colors.muted, marginTop: 40 },
 });

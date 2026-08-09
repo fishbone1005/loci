@@ -15,10 +15,13 @@ export type Photo = {
   id: string;
   placeId: string;
   storagePath: string | null;
-  localUri: string;
+  localUri: string | null;
   sortOrder: number;
   synced: boolean;
 };
+
+/** A place plus its first photo, for the list screen's card thumbnail. */
+export type PlaceListItem = Place & { thumb: Photo | null };
 
 export type NewPlaceInput = {
   name: string;

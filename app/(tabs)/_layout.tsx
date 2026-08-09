@@ -1,18 +1,15 @@
 import { SymbolView } from 'expo-symbols';
-import { Link, Tabs } from 'expo-router';
-import { Platform, Pressable } from 'react-native';
+import { Tabs } from 'expo-router';
 
-import Colors from '@/constants/Colors';
-import { useColorScheme } from '@/components/useColorScheme';
+import { colors } from '../../src/theme/tokens';
 import { useClientOnlyValue } from '@/components/useClientOnlyValue';
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme].tint,
+        tabBarActiveTintColor: colors.stampRed,
+        tabBarInactiveTintColor: colors.muted,
         // Disable the static render of the header on web
         // to prevent a hydration error in React Navigation v6.
         headerShown: useClientOnlyValue(false, true),
@@ -23,28 +20,10 @@ export default function TabLayout() {
           title: '기록',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
               tintColor={color}
               size={28}
             />
-          ),
-          headerRight: () => (
-            <Link href="/modal" asChild>
-              <Pressable style={{ marginRight: 15 }}>
-                {({ pressed }) => (
-                  <SymbolView
-                    name={{ ios: 'info.circle', android: 'info', web: 'info' }}
-                    size={25}
-                    tintColor={Colors[colorScheme].text}
-                    style={{ opacity: pressed ? 0.5 : 1 }}
-                  />
-                )}
-              </Pressable>
-            </Link>
           ),
         }}
       />
@@ -54,11 +33,7 @@ export default function TabLayout() {
           title: '보관함',
           tabBarIcon: ({ color }) => (
             <SymbolView
-              name={{
-                ios: 'chevron.left.forwardslash.chevron.right',
-                android: 'code',
-                web: 'code',
-              }}
+              name={{ ios: 'archivebox', android: 'inventory_2', web: 'inventory_2' }}
               tintColor={color}
               size={28}
             />

@@ -30,6 +30,11 @@ async function uploadPlace(place: Place): Promise<void> {
 }
 
 async function uploadPhoto(photo: Photo): Promise<void> {
+  // Cloud-restored photos have no local file to push back up.
+  if (!photo.localUri) {
+    markPhotoSynced(photo.id);
+    return;
+  }
   const response = await fetch(photo.localUri);
   const blob = await response.blob();
   const path = `${photo.placeId}/${photo.id}.jpg`;

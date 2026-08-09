@@ -1,10 +1,11 @@
+import NetInfo from '@react-native-community/netinfo';
 import { useFonts } from 'expo-font';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/components/useColorScheme';
+import { runSync } from '../src/sync/runSync';
 
 export {
   // Catch any errors thrown by the Layout component.
@@ -12,7 +13,6 @@ export {
 } from 'expo-router';
 
 export const unstable_settings = {
-  // Ensure that reloading on `/modal` keeps a back button present.
   initialRouteName: '(tabs)',
 };
 
@@ -43,13 +43,21 @@ export default function RootLayout() {
 }
 
 function RootLayoutNav() {
-  const colorScheme = useColorScheme();
+  // Retry unsynced records whenever connectivity comes back — otherwise sync
+  // only ever runs from the capture screen's save handler.
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) runSync().catch(() => {});
+    });
+    return unsubscribe;
+  }, []);
 
+  // "여백 기록부" is a light-only design; every screen hardcodes the paper/ink
+  // tokens, so the navigation chrome must not flip to dark.
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
       <Stack>
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
         <Stack.Screen name="place/[id]" options={{ title: '' }} />
         <Stack.Screen name="login" options={{ title: '계정', presentation: 'modal' }} />
       </Stack>
