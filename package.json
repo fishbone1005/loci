@@ -47,6 +47,8 @@
   },
   "private": true,
   "jest": {
-    "preset": "jest-expo"
+    "preset": "jest-expo",
+    "modulePathIgnorePatterns": ["<rootDir>/.worktrees/"],
+    "testPathIgnorePatterns": ["<rootDir>/node_modules/", "<rootDir>/.worktrees/"]
   }
 }
