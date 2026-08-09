@@ -25,8 +25,3 @@ export async function signIn(email: string, password: string) {
 export async function signOut(): Promise<void> {
   await supabase.auth.signOut();
 }
-
-export async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getSession();
-  return data.session?.user.id ?? null;
-}

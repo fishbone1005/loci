@@ -1,14 +1,19 @@
+import * as Crypto from 'expo-crypto';
 import { getDb } from './client';
 import { buildListQuery, ListPlacesOptions } from './queries';
-import type { Place, Photo, NewPlaceInput } from '../types';
+import { supabase } from '../supabase/client';
+import type { Place, Photo, PlaceListItem, NewPlaceInput } from '../types';
 import type { SQLiteBindValue } from 'expo-sqlite';
 
 function nowIso(): string {
   return new Date().toISOString();
 }
 
+// Must be a real UUID: the Supabase `places`/`photos` tables have uuid primary keys,
+// so anything else is rejected on upload. No fallback on purpose — a silent bad
+// fallback is what hid this being broken.
 function newId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return Crypto.randomUUID();
 }
 
 export function createPlace(input: NewPlaceInput, userId: string | null): Place {
@@ -43,11 +48,17 @@ export function createPlace(input: NewPlaceInput, userId: string | null): Place 
   };
 }
 
-export function listPlaces(options: ListPlacesOptions): Place[] {
+export function listPlaces(options: ListPlacesOptions): PlaceListItem[] {
   const db = getDb();
   const { sql, params } = buildListQuery(options);
   const rows = db.getAllSync<any>(sql, params as SQLiteBindValue[]);
-  return rows.map(rowToPlace);
+  return rows.map((row) => {
+    const thumb = db.getFirstSync<any>(
+      'SELECT * FROM photos WHERE place_id = ? ORDER BY sort_order ASC LIMIT 1',
+      [row.id]
+    );
+    return { ...rowToPlace(row), thumb: thumb ? rowToPhoto(thumb) : null };
+  });
 }
 
 export function getPlaceWithPhotos(id: string): { place: Place; photos: Photo[] } | null {
@@ -72,10 +83,29 @@ export function deletePlace(id: string): void {
   const db = getDb();
   db.runSync('DELETE FROM photos WHERE place_id = ?', [id]);
   db.runSync('DELETE FROM places WHERE id = ?', [id]);
+  // Best-effort remote delete so the row can't resurrect on the next pull.
+  // Fire-and-forget: RLS already scopes it, and offline deletes stay local-only.
+  // ponytail: no tombstone queue — an offline delete won't retry; add one if it bites.
+  supabase.from('places').delete().eq('id', id).then(
+    () => {},
+    () => {}
+  );
+}
+
+/**
+ * Attach every locally-created (logged-out) row to the user who just logged in,
+ * and mark them dirty so the next sync pushes them. Without this, `user_id = NULL`
+ * rows can never pass the `auth.uid() = user_id` RLS policy.
+ */
+export function claimLocalPlaces(userId: string): void {
+  const db = getDb();
+  db.runSync('UPDATE places SET user_id = ?, synced = 0 WHERE user_id IS NULL', [userId]);
 }
 
 export function listUnsyncedPlaces(): Place[] {
-  const rows = getDb().getAllSync<any>('SELECT * FROM places WHERE synced = 0', []);
+  // Unowned rows can never pass the `auth.uid() = user_id` RLS policy, so don't
+  // burn a guaranteed-failing request on them; login claims them first.
+  const rows = getDb().getAllSync<any>('SELECT * FROM places WHERE synced = 0 AND user_id IS NOT NULL', []);
   return rows.map(rowToPlace);
 }
 
@@ -97,6 +127,15 @@ export function upsertRemotePlace(place: Place): void {
     `INSERT OR REPLACE INTO places (id, user_id, name, address, latitude, longitude, memo, created_at, updated_at, synced)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     [place.id, place.userId, place.name, place.address, place.latitude, place.longitude, place.memo, place.createdAt, place.updatedAt]
+  );
+}
+
+/** Cache a photo row pulled from the cloud. `local_uri` stays NULL until the file is downloaded. */
+export function upsertRemotePhoto(photo: Photo): void {
+  getDb().runSync(
+    `INSERT OR REPLACE INTO photos (id, place_id, storage_path, local_uri, sort_order, synced)
+     VALUES (?, ?, ?, ?, ?, 1)`,
+    [photo.id, photo.placeId, photo.storagePath, photo.localUri, photo.sortOrder]
   );
 }
 

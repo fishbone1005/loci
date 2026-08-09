@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, Alert } from 'react-native';
 import { router } from 'expo-router';
-import { colors } from '../src/theme/tokens';
+import { colors, spacing } from '../src/theme/tokens';
 import { signIn, signUp, signOut } from '../src/supabase/auth';
 import { supabase } from '../src/supabase/client';
+import { claimLocalPlaces } from '../src/db/placesRepo';
 import { pullRemotePlaces } from '../src/sync/pull';
+import { runSync } from '../src/sync/runSync';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -25,17 +27,27 @@ export default function LoginScreen() {
       if (mode === 'signIn') {
         await signIn(email, password);
       } else {
-        await signUp(email, password);
+        const result = await signUp(email, password);
+        if (!result.session) {
+          // Email confirmation is on: there's no session yet, so nothing to sync.
+          Alert.alert('가입 완료!', '이메일을 확인해주세요. 인증 후 로그인할 수 있어요.');
+          setMode('signIn');
+          return;
+        }
       }
       const { data } = await supabase.auth.getSession();
       const userId = data.session?.user.id;
       if (userId) {
+        // Adopt everything recorded while logged out before pulling/pushing —
+        // `user_id = NULL` rows can never pass the RLS policy otherwise.
+        claimLocalPlaces(userId);
         await pullRemotePlaces(userId);
+        runSync().catch(() => {});
         setSession({ email: data.session!.user.email ?? '' });
       }
       router.replace('/list');
     } catch (error: any) {
-      Alert.alert('로그인 실패', error.message);
+      Alert.alert(mode === 'signIn' ? '로그인 실패' : '회원가입 실패', error.message);
     } finally {
       setBusy(false);
     }
@@ -89,12 +101,12 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.paper, padding: 24, justifyContent: 'center', gap: 12 },
+  screen: { flex: 1, backgroundColor: colors.paper, padding: spacing.lg, justifyContent: 'center', gap: 12 },
   title: { fontSize: 32, color: colors.ink, textAlign: 'center' },
   subtitle: { fontSize: 13, color: colors.sageOlive, textAlign: 'center', marginBottom: 20 },
   input: { borderBottomWidth: 1, borderBottomColor: colors.mist, paddingVertical: 10 },
   button: { backgroundColor: colors.stampRed, borderRadius: 5, paddingVertical: 14, alignItems: 'center', marginTop: 12 },
   buttonText: { color: colors.paper, fontWeight: '600' },
-  switch: { textAlign: 'center', color: colors.sageOlive, marginTop: 16, fontSize: 12 },
-  skip: { textAlign: 'center', color: '#8A8073', marginTop: 8, fontSize: 12 },
+  switch: { textAlign: 'center', color: colors.sageOlive, marginTop: spacing.md, fontSize: 12 },
+  skip: { textAlign: 'center', color: colors.muted, marginTop: spacing.sm, fontSize: 12 },
 });
