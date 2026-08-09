@@ -7,6 +7,9 @@ import { getCurrentAddress } from '../../src/location/reverseGeocode';
 import { createPlace } from '../../src/db/placesRepo';
 import { persistPhotos } from '../../src/storage/photoFiles';
 import { runSync } from '../../src/sync/runSync';
+import { CategoryTagInput } from '../../src/components/CategoryTagInput';
+import { findOrCreateCategory, listCategories, assignCategories } from '../../src/db/categoriesRepo';
+import type { Category } from '../../src/types';
 
 export default function CaptureScreen() {
   const [photoUris, setPhotoUris] = useState<string[]>([]);
@@ -19,6 +22,8 @@ export default function CaptureScreen() {
   // A ref, not the state flag: `save()` is synchronous, so a second tap can fire
   // before React re-renders with `saving === true` and would read stale field state.
   const savingRef = useRef(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   // Re-arm when the user comes back to the tab after a save navigated away.
   useFocusEffect(
@@ -27,6 +32,24 @@ export default function CaptureScreen() {
       setSaving(false);
     }, [])
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      setCategories(listCategories());
+    }, [])
+  );
+
+  function handleCreateCategory(name: string) {
+    const category = findOrCreateCategory(name, null);
+    setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
+    setSelectedCategoryIds((prev) => (prev.includes(category.id) ? prev : [...prev, category.id]));
+  }
+
+  function handleToggleCategory(categoryId: string) {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(categoryId) ? prev.filter((id) => id !== categoryId) : [...prev, categoryId]
+    );
+  }
 
   async function pickPhotos() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -67,7 +90,7 @@ export default function CaptureScreen() {
     setSaving(true);
     // Always written as an unowned local row; login claims it (claimLocalPlaces)
     // so the save path never waits on the network.
-    createPlace(
+    const place = createPlace(
       {
         name: name.trim(),
         address,
@@ -78,12 +101,14 @@ export default function CaptureScreen() {
       },
       null
     );
+    assignCategories(place.id, selectedCategoryIds);
     runSync().catch(() => {});
     setPhotoUris([]);
     setName('');
     setAddress('');
     setMemo('');
     setCoords(null);
+    setSelectedCategoryIds([]);
     router.replace('/list');
   }
 
@@ -124,6 +149,14 @@ export default function CaptureScreen() {
         onChangeText={setMemo}
         placeholder="비 오는 날 가면 더 좋다..."
         multiline
+      />
+
+      <Text style={styles.label}>카테고리</Text>
+      <CategoryTagInput
+        allCategories={categories}
+        selectedIds={selectedCategoryIds}
+        onToggle={handleToggleCategory}
+        onCreate={handleCreateCategory}
       />
 
       <Pressable style={styles.saveButton} onPress={save} disabled={saving}>

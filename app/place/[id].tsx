@@ -5,6 +5,9 @@ import { colors, fonts, spacing } from '../../src/theme/tokens';
 import { getPlaceWithPhotos, updatePlace, deletePlace } from '../../src/db/placesRepo';
 import { usePhotoUri } from '../../src/storage/photoFiles';
 import type { Place, Photo } from '../../src/types';
+import { CategoryTagInput } from '../../src/components/CategoryTagInput';
+import { listCategories, listCategoriesForPlace, findOrCreateCategory, assignCategories } from '../../src/db/categoriesRepo';
+import type { Category } from '../../src/types';
 
 const screenWidth = Dimensions.get('window').width;
 
@@ -23,6 +26,8 @@ export default function PlaceDetailScreen() {
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [memo, setMemo] = useState('');
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -34,11 +39,26 @@ export default function PlaceDetailScreen() {
     setName(result.place.name);
     setAddress(result.place.address);
     setMemo(result.place.memo);
+    setCategories(listCategories());
+    setSelectedCategoryIds(listCategoriesForPlace(id).map((c) => c.id));
   }, [id]);
+
+  function handleCreateCategory(name: string) {
+    const category = findOrCreateCategory(name, null);
+    setCategories((prev) => (prev.some((c) => c.id === category.id) ? prev : [...prev, category]));
+    setSelectedCategoryIds((prev) => (prev.includes(category.id) ? prev : [...prev, category.id]));
+  }
+
+  function handleToggleCategory(categoryId: string) {
+    setSelectedCategoryIds((prev) =>
+      prev.includes(categoryId) ? prev.filter((cid) => cid !== categoryId) : [...prev, categoryId]
+    );
+  }
 
   function saveEdits() {
     if (!place) return;
     updatePlace(place.id, { name, address, memo });
+    assignCategories(place.id, selectedCategoryIds);
     setEditing(false);
     setPlace({ ...place, name, address, memo });
   }
@@ -85,6 +105,12 @@ export default function PlaceDetailScreen() {
             <TextInput style={styles.inputSerif} value={name} onChangeText={setName} />
             <TextInput style={styles.inputMono} value={address} onChangeText={setAddress} />
             <TextInput style={styles.inputMono} value={memo} onChangeText={setMemo} multiline />
+            <CategoryTagInput
+              allCategories={categories}
+              selectedIds={selectedCategoryIds}
+              onToggle={handleToggleCategory}
+              onCreate={handleCreateCategory}
+            />
           </>
         ) : (
           <>
