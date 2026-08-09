@@ -1,4 +1,4 @@
-import { buildListQuery } from './queries';
+import { buildListQuery, escapeLike } from './queries';
 
 describe('buildListQuery', () => {
   test('defaults to recent-first with no filters', () => {
@@ -14,8 +14,13 @@ describe('buildListQuery', () => {
 
   test('adds a keyword filter across name and address', () => {
     const { sql, params } = buildListQuery({ sort: 'recent', query: '카페' });
-    expect(sql).toContain('WHERE (name LIKE ? OR address LIKE ?)');
+    expect(sql).toContain("WHERE (name LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\')");
     expect(params).toEqual(['%카페%', '%카페%']);
+  });
+
+  test('escapes LIKE wildcards in the keyword so they match literally', () => {
+    const { params } = buildListQuery({ sort: 'recent', query: '50%_off' });
+    expect(params).toEqual(['%50\\%\\_off%', '%50\\%\\_off%']);
   });
 
   test('adds a date range filter', () => {
@@ -31,6 +36,20 @@ describe('buildListQuery', () => {
 
   test('combines keyword and date filters with AND', () => {
     const { sql } = buildListQuery({ sort: 'recent', query: '카페', dateFrom: '2026-08-01' });
-    expect(sql).toContain('WHERE (name LIKE ? OR address LIKE ?) AND created_at >= ?');
+    expect(sql).toContain(
+      "WHERE (name LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\') AND created_at >= ?"
+    );
+  });
+});
+
+describe('escapeLike', () => {
+  test('leaves ordinary text alone', () => {
+    expect(escapeLike('성수동 카페')).toBe('성수동 카페');
+  });
+
+  test('escapes wildcards and the escape character itself', () => {
+    expect(escapeLike('100%')).toBe('100\\%');
+    expect(escapeLike('a_b')).toBe('a\\_b');
+    expect(escapeLike('back\\slash')).toBe('back\\\\slash');
   });
 });

@@ -5,13 +5,18 @@ export type ListPlacesOptions = {
   dateTo?: string;
 };
 
+/** Treat `%`, `_` and the escape char itself as literals inside a LIKE pattern. */
+export function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
 export function buildListQuery(options: ListPlacesOptions): { sql: string; params: unknown[] } {
   const clauses: string[] = [];
   const params: unknown[] = [];
 
   if (options.query && options.query.trim().length > 0) {
-    clauses.push('(name LIKE ? OR address LIKE ?)');
-    const like = `%${options.query.trim()}%`;
+    clauses.push("(name LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\')");
+    const like = `%${escapeLike(options.query.trim())}%`;
     params.push(like, like);
   }
   if (options.dateFrom) {
