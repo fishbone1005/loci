@@ -51,7 +51,27 @@ export default function CaptureScreen() {
     );
   }
 
-  async function pickPhotos() {
+  function choosePhotoSource() {
+    Alert.alert('사진 추가', undefined, [
+      { text: '촬영하기', onPress: takePhoto },
+      { text: '앨범에서 선택', onPress: pickFromLibrary },
+      { text: '취소', style: 'cancel' },
+    ]);
+  }
+
+  async function takePhoto() {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (!permission.granted) {
+      Alert.alert('카메라 접근 권한이 필요해요', '설정에서 권한을 허용해주세요.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+    if (!result.canceled) {
+      setPhotoUris(await persistPhotos(result.assets.map((asset) => asset.uri)));
+    }
+  }
+
+  async function pickFromLibrary() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       Alert.alert('사진 접근 권한이 필요해요', '설정에서 권한을 허용해주세요.');
@@ -116,7 +136,7 @@ export default function CaptureScreen() {
     <ScrollView style={styles.screen} contentContainerStyle={styles.content}>
       <Text style={styles.title}>새 장소 기록</Text>
 
-      <Pressable style={styles.photoFrame} onPress={pickPhotos}>
+      <Pressable style={styles.photoFrame} onPress={choosePhotoSource}>
         {photoUris.length > 0 ? (
           <Image source={{ uri: photoUris[0] }} style={styles.photoPreview} />
         ) : (
