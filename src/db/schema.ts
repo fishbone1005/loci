@@ -22,4 +22,21 @@ CREATE TABLE IF NOT EXISTS photos (
 );
 
 CREATE INDEX IF NOT EXISTS idx_photos_place_id ON photos(place_id);
+
+CREATE TABLE IF NOT EXISTS categories (
+  id TEXT PRIMARY KEY NOT NULL,
+  user_id TEXT,
+  name TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  synced INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS place_categories (
+  place_id TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  category_id TEXT NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+  synced INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (place_id, category_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_place_categories_category_id ON place_categories(category_id);
 `;

@@ -3,6 +3,7 @@ export type ListPlacesOptions = {
   query?: string;
   dateFrom?: string;
   dateTo?: string;
+  categoryId?: string;
 };
 
 /** Treat `%`, `_` and the escape char itself as literals inside a LIKE pattern. */
@@ -26,6 +27,10 @@ export function buildListQuery(options: ListPlacesOptions): { sql: string; param
   if (options.dateTo) {
     clauses.push('created_at <= ?');
     params.push(options.dateTo);
+  }
+  if (options.categoryId) {
+    clauses.push('id IN (SELECT place_id FROM place_categories WHERE category_id = ?)');
+    params.push(options.categoryId);
   }
 
   const orderBy = options.sort === 'name' ? 'name COLLATE NOCASE ASC' : 'created_at DESC';

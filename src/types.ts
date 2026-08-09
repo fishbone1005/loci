@@ -31,3 +31,25 @@ export type NewPlaceInput = {
   memo: string;
   photoUris: string[];
 };
+
+export type Category = {
+  id: string;
+  userId: string | null;
+  name: string;
+  createdAt: string; // ISO 8601
+  synced: boolean;
+};
+
+export type PlaceCategory = {
+  placeId: string;
+  categoryId: string;
+  synced: boolean;
+};
+
+/** A category plus its place count and a representative thumbnail, for the album grid. */
+export type CategorySummary = {
+  id: string;
+  name: string;
+  placeCount: number;
+  thumb: string | null;
+};

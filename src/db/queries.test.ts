@@ -42,6 +42,28 @@ describe('buildListQuery', () => {
   });
 });
 
+describe('buildListQuery categoryId filter', () => {
+  test('adds a category filter clause', () => {
+    const { sql, params } = buildListQuery({ sort: 'recent', categoryId: 'cat-1' });
+    expect(sql).toContain('WHERE id IN (SELECT place_id FROM place_categories WHERE category_id = ?)');
+    expect(params).toEqual(['cat-1']);
+  });
+
+  test('combines category filter with keyword and date filters using AND', () => {
+    const { sql, params } = buildListQuery({ sort: 'recent', query: '카페', categoryId: 'cat-1' });
+    expect(sql).toContain(
+      "WHERE (name LIKE ? ESCAPE '\\' OR address LIKE ? ESCAPE '\\') AND id IN (SELECT place_id FROM place_categories WHERE category_id = ?)"
+    );
+    expect(params).toEqual(['%카페%', '%카페%', 'cat-1']);
+  });
+
+  test('omits the category clause when categoryId is not provided', () => {
+    const { sql, params } = buildListQuery({ sort: 'recent' });
+    expect(sql).not.toContain('place_categories');
+    expect(params).toEqual([]);
+  });
+});
+
 describe('escapeLike', () => {
   test('leaves ordinary text alone', () => {
     expect(escapeLike('성수동 카페')).toBe('성수동 카페');
