@@ -1,7 +1,7 @@
 // app/(tabs)/list.tsx
 import { useCallback, useState } from 'react';
 import { View, Text, TextInput, FlatList, Image, Pressable, StyleSheet } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
 import { colors, fonts, spacing } from '../../src/theme/tokens';
 import { listPlaces } from '../../src/db/placesRepo';
 import { usePhotoUri } from '../../src/storage/photoFiles';
@@ -28,6 +28,7 @@ function Thumb({ photo }: { photo: Photo | null }) {
 }
 
 export default function ListScreen() {
+  const params = useLocalSearchParams<{ categoryId?: string; categoryName?: string }>();
   const [places, setPlaces] = useState<PlaceListItem[]>([]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<'recent' | 'name'>('recent');
@@ -35,8 +36,8 @@ export default function ListScreen() {
 
   const reload = useCallback(() => {
     const range = monthFilter === 'this' ? monthRange(0) : monthFilter === 'last' ? monthRange(-1) : {};
-    setPlaces(listPlaces({ sort, query, ...range }));
-  }, [sort, query, monthFilter]);
+    setPlaces(listPlaces({ sort, query, categoryId: params.categoryId, ...range }));
+  }, [sort, query, monthFilter, params.categoryId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -52,6 +53,12 @@ export default function ListScreen() {
           <Text style={styles.account}>계정</Text>
         </Pressable>
       </View>
+
+      {params.categoryId && (
+        <Pressable style={styles.categoryPill} onPress={() => router.setParams({ categoryId: '', categoryName: '' })}>
+          <Text style={styles.categoryPillText}>{params.categoryName} 필터 중 ✕</Text>
+        </Pressable>
+      )}
 
       <TextInput
         style={styles.search}
@@ -123,6 +130,17 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.mist,
     paddingVertical: spacing.sm,
   },
+  categoryPill: {
+    marginHorizontal: 18,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.gold,
+    borderRadius: 20,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+  },
+  categoryPillText: { fontSize: 11, color: colors.gold },
   filterRow: { flexDirection: 'row', gap: 14, paddingHorizontal: 18, paddingTop: 10, flexWrap: 'wrap' },
   filter: { fontSize: 12, color: colors.muted },
   filterActive: { fontSize: 12, color: colors.ink, borderBottomWidth: 1, borderBottomColor: colors.gold },

@@ -28,6 +28,13 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <Ionicons name="file-tray-stacked" color={color} size={26} />,
         }}
       />
+      <Tabs.Screen
+        name="categories"
+        options={{
+          title: '분류',
+          tabBarIcon: ({ color }) => <Ionicons name="pricetags" color={color} size={26} />,
+        }}
+      />
     </Tabs>
   );
 }
