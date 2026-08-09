@@ -1,4 +1,4 @@
-import { processSyncQueue, SyncDeps } from './syncQueue';
+import { processSyncQueue, processFlatSyncQueue, SyncDeps } from './syncQueue';
 import type { Place, Photo } from '../types';
 
 function makePlace(id: string): Place {
@@ -131,5 +131,74 @@ describe('processSyncQueue', () => {
     expect(result).toEqual({ attempted: 2, succeeded: 1, failed: 1, skippedOffline: false });
     expect(markPlaceSynced).toHaveBeenCalledWith('p1');
     expect(markPlaceSynced).not.toHaveBeenCalledWith('p2');
+  });
+});
+
+describe('processFlatSyncQueue', () => {
+  type Item = { id: string };
+
+  test('skips entirely when offline', async () => {
+    const deps = {
+      listUnsynced: jest.fn(() => [{ id: 'a' }]),
+      isOnline: async () => false,
+      upload: jest.fn(async () => {}),
+      markSynced: jest.fn(),
+    };
+
+    const result = await processFlatSyncQueue(deps);
+
+    expect(result).toEqual({ attempted: 0, succeeded: 0, failed: 0, skippedOffline: true });
+    expect(deps.upload).not.toHaveBeenCalled();
+  });
+
+  test('uploads each pending item and marks it synced', async () => {
+    const markSynced = jest.fn();
+    const deps = {
+      listUnsynced: () => [{ id: 'a' }, { id: 'b' }] as Item[],
+      isOnline: async () => true,
+      upload: jest.fn(async () => {}),
+      markSynced,
+    };
+
+    const result = await processFlatSyncQueue(deps);
+
+    expect(result).toEqual({ attempted: 2, succeeded: 2, failed: 0, skippedOffline: false });
+    expect(markSynced).toHaveBeenCalledWith({ id: 'a' });
+    expect(markSynced).toHaveBeenCalledWith({ id: 'b' });
+  });
+
+  test('leaves an item unsynced when upload fails, without throwing', async () => {
+    const markSynced = jest.fn();
+    const deps = {
+      listUnsynced: () => [{ id: 'a' }] as Item[],
+      isOnline: async () => true,
+      upload: jest.fn(async () => {
+        throw new Error('network blip');
+      }),
+      markSynced,
+    };
+
+    const result = await processFlatSyncQueue(deps);
+
+    expect(result).toEqual({ attempted: 1, succeeded: 0, failed: 1, skippedOffline: false });
+    expect(markSynced).not.toHaveBeenCalled();
+  });
+
+  test('processes multiple items independently', async () => {
+    const markSynced = jest.fn();
+    const deps = {
+      listUnsynced: () => [{ id: 'a' }, { id: 'b' }] as Item[],
+      isOnline: async () => true,
+      upload: jest.fn(async (item: Item) => {
+        if (item.id === 'b') throw new Error('fail b');
+      }),
+      markSynced,
+    };
+
+    const result = await processFlatSyncQueue(deps);
+
+    expect(result).toEqual({ attempted: 2, succeeded: 1, failed: 1, skippedOffline: false });
+    expect(markSynced).toHaveBeenCalledWith({ id: 'a' });
+    expect(markSynced).not.toHaveBeenCalledWith({ id: 'b' });
   });
 });

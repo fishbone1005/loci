@@ -5,7 +5,8 @@ import { colors, spacing } from '../src/theme/tokens';
 import { signIn, signUp, signOut } from '../src/supabase/auth';
 import { supabase } from '../src/supabase/client';
 import { claimLocalPlaces } from '../src/db/placesRepo';
-import { pullRemotePlaces } from '../src/sync/pull';
+import { claimLocalCategories } from '../src/db/categoriesRepo';
+import { pullRemoteData } from '../src/sync/pull';
 import { runSync } from '../src/sync/runSync';
 
 export default function LoginScreen() {
@@ -41,7 +42,8 @@ export default function LoginScreen() {
         // Adopt everything recorded while logged out before pulling/pushing —
         // `user_id = NULL` rows can never pass the RLS policy otherwise.
         claimLocalPlaces(userId);
-        await pullRemotePlaces(userId);
+        claimLocalCategories(userId);
+        await pullRemoteData(userId);
         runSync().catch(() => {});
         setSession({ email: data.session!.user.email ?? '' });
       }

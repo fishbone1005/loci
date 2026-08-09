@@ -1,5 +1,10 @@
 jest.mock('../supabase/client', () => ({ supabase: {} }));
-jest.mock('../db/placesRepo', () => ({ listPlaces: jest.fn(), upsertRemotePlace: jest.fn() }));
+jest.mock('../db/placesRepo', () => ({ listPlaces: jest.fn(), upsertRemotePlace: jest.fn(), upsertRemotePhoto: jest.fn() }));
+jest.mock('../db/categoriesRepo', () => ({
+  listCategories: jest.fn(),
+  upsertRemoteCategory: jest.fn(),
+  upsertRemotePlaceCategory: jest.fn(),
+}));
 
 import { placesToPull } from './pull';
 

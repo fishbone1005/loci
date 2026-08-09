@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo';
-import { processSyncQueue } from './syncQueue';
+import { processSyncQueue, processFlatSyncQueue } from './syncQueue';
 import { supabase } from '../supabase/client';
 import {
   claimLocalPlaces,
@@ -8,7 +8,14 @@ import {
   markPlaceSynced,
   markPhotoSynced,
 } from '../db/placesRepo';
-import type { Place, Photo } from '../types';
+import {
+  claimLocalCategories,
+  listUnsyncedCategories,
+  markCategorySynced,
+  listUnsyncedPlaceCategories,
+  markPlaceCategorySynced,
+} from '../db/categoriesRepo';
+import type { Place, Photo, Category, PlaceCategory } from '../types';
 
 async function isOnline(): Promise<boolean> {
   const state = await NetInfo.fetch();
@@ -51,16 +58,45 @@ async function uploadPhoto(photo: Photo): Promise<void> {
   if (dbError) throw dbError;
 }
 
+async function uploadCategory(category: Category): Promise<void> {
+  const { error } = await supabase.from('categories').upsert({
+    id: category.id,
+    user_id: category.userId,
+    name: category.name,
+    created_at: category.createdAt,
+  });
+  if (error) throw error;
+}
+
+async function uploadPlaceCategory(pc: PlaceCategory): Promise<void> {
+  const { error } = await supabase
+    .from('place_categories')
+    .upsert({ place_id: pc.placeId, category_id: pc.categoryId });
+  if (error) throw error;
+}
+
 export async function runSync() {
   // Authoritative claiming point. Saves always write `user_id = NULL` and
-  // `listUnsyncedPlaces` skips unowned rows, so anything recorded while a
-  // persisted session was already active would otherwise never be uploaded.
-  // Idempotent — only touches rows where `user_id IS NULL`.
+  // `listUnsyncedPlaces`/`listUnsyncedCategories` skip unowned rows, so
+  // anything recorded while a persisted session was already active would
+  // otherwise never be uploaded. Idempotent — only touches unowned rows.
   const { data } = await supabase.auth.getSession();
   const userId = data.session?.user.id;
-  if (userId) claimLocalPlaces(userId);
+  if (userId) {
+    claimLocalPlaces(userId);
+    claimLocalCategories(userId);
+  }
 
-  return processSyncQueue({
+  // Categories before places+photos, and place_categories after both —
+  // the join table's rows reference ids that must already exist remotely.
+  await processFlatSyncQueue({
+    listUnsynced: listUnsyncedCategories,
+    isOnline,
+    upload: uploadCategory,
+    markSynced: (category: Category) => markCategorySynced(category.id),
+  });
+
+  const placesResult = await processSyncQueue({
     listUnsyncedPlaces,
     listUnsyncedPhotos: listUnsyncedPhotosForPlace,
     isOnline,
@@ -69,4 +105,13 @@ export async function runSync() {
     markPlaceSynced,
     markPhotoSynced,
   });
+
+  await processFlatSyncQueue({
+    listUnsynced: listUnsyncedPlaceCategories,
+    isOnline,
+    upload: uploadPlaceCategory,
+    markSynced: (pc: PlaceCategory) => markPlaceCategorySynced(pc.placeId, pc.categoryId),
+  });
+
+  return placesResult;
 }

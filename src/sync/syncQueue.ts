@@ -39,3 +39,37 @@ export async function processSyncQueue(deps: SyncDeps): Promise<SyncResult> {
 
   return { attempted: pending.length, succeeded, failed, skippedOffline: false };
 }
+
+export type FlatSyncDeps<T> = {
+  listUnsynced: () => T[];
+  isOnline: () => Promise<boolean>;
+  upload: (item: T) => Promise<void>;
+  markSynced: (item: T) => void;
+};
+
+/**
+ * Same shape as processSyncQueue but for resources with no nested sub-items
+ * (categories, place_categories) — one upload-and-mark step per row.
+ */
+export async function processFlatSyncQueue<T>(deps: FlatSyncDeps<T>): Promise<SyncResult> {
+  const online = await deps.isOnline();
+  if (!online) {
+    return { attempted: 0, succeeded: 0, failed: 0, skippedOffline: true };
+  }
+
+  const pending = deps.listUnsynced();
+  let succeeded = 0;
+  let failed = 0;
+
+  for (const item of pending) {
+    try {
+      await deps.upload(item);
+      deps.markSynced(item);
+      succeeded += 1;
+    } catch {
+      failed += 1;
+    }
+  }
+
+  return { attempted: pending.length, succeeded, failed, skippedOffline: false };
+}
