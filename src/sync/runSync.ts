@@ -2,6 +2,7 @@ import NetInfo from '@react-native-community/netinfo';
 import { processSyncQueue } from './syncQueue';
 import { supabase } from '../supabase/client';
 import {
+  claimLocalPlaces,
   listUnsyncedPlaces,
   listUnsyncedPhotosForPlace,
   markPlaceSynced,
@@ -51,6 +52,14 @@ async function uploadPhoto(photo: Photo): Promise<void> {
 }
 
 export async function runSync() {
+  // Authoritative claiming point. Saves always write `user_id = NULL` and
+  // `listUnsyncedPlaces` skips unowned rows, so anything recorded while a
+  // persisted session was already active would otherwise never be uploaded.
+  // Idempotent — only touches rows where `user_id IS NULL`.
+  const { data } = await supabase.auth.getSession();
+  const userId = data.session?.user.id;
+  if (userId) claimLocalPlaces(userId);
+
   return processSyncQueue({
     listUnsyncedPlaces,
     listUnsyncedPhotos: listUnsyncedPhotosForPlace,
