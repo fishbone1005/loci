@@ -1,4 +1,4 @@
-import { SymbolView } from 'expo-symbols';
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { colors } from '../../src/theme/tokens';
@@ -18,26 +18,14 @@ export default function TabLayout() {
         name="index"
         options={{
           title: '기록',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'camera', android: 'photo_camera', web: 'photo_camera' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="camera" color={color} size={26} />,
         }}
       />
       <Tabs.Screen
         name="list"
         options={{
           title: '보관함',
-          tabBarIcon: ({ color }) => (
-            <SymbolView
-              name={{ ios: 'archivebox', android: 'inventory_2', web: 'inventory_2' }}
-              tintColor={color}
-              size={28}
-            />
-          ),
+          tabBarIcon: ({ color }) => <Ionicons name="file-tray-stacked" color={color} size={26} />,
         }}
       />
     </Tabs>
