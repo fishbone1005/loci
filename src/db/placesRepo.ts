@@ -82,6 +82,9 @@ export function updatePlace(id: string, changes: Partial<Pick<Place, 'name' | 'a
 export function deletePlace(id: string): void {
   const db = getDb();
   db.runSync('DELETE FROM photos WHERE place_id = ?', [id]);
+  // The schema's ON DELETE CASCADE is inert — nothing turns on `PRAGMA foreign_keys`
+  // — so the join rows have to go explicitly or they orphan at synced = 0 forever.
+  db.runSync('DELETE FROM place_categories WHERE place_id = ?', [id]);
   db.runSync('DELETE FROM places WHERE id = ?', [id]);
   // Best-effort remote delete so the row can't resurrect on the next pull.
   // Fire-and-forget: RLS already scopes it, and offline deletes stay local-only.

@@ -4,7 +4,14 @@ import { View, Text, FlatList, Pressable, Image, StyleSheet } from 'react-native
 import { useFocusEffect, router } from 'expo-router';
 import { colors, fonts } from '../../src/theme/tokens';
 import { listCategoriesWithCounts } from '../../src/db/categoriesRepo';
+import { usePhotoUri } from '../../src/storage/photoFiles';
 import type { CategorySummary } from '../../src/types';
+
+function TileImage({ photo }: { photo: CategorySummary['thumb'] }) {
+  const uri = usePhotoUri(photo);
+  if (!uri) return <View style={styles.tileImage} />;
+  return <Image source={{ uri }} style={styles.tileImage} />;
+}
 
 export default function CategoriesScreen() {
   const [categories, setCategories] = useState<CategorySummary[]>([]);
@@ -31,11 +38,7 @@ export default function CategoriesScreen() {
               router.push({ pathname: '/list', params: { categoryId: item.id, categoryName: item.name } })
             }
           >
-            {item.thumb ? (
-              <Image source={{ uri: item.thumb }} style={styles.tileImage} />
-            ) : (
-              <View style={styles.tileImage} />
-            )}
+            <TileImage photo={item.thumb} />
             <Text style={styles.tileName}>{item.name}</Text>
             <Text style={styles.tileCount}>{item.placeCount}곳</Text>
           </Pressable>

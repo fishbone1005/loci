@@ -46,10 +46,14 @@ export type PlaceCategory = {
   synced: boolean;
 };
 
-/** A category plus its place count and a representative thumbnail, for the album grid. */
+/**
+ * A category plus its place count and a representative thumbnail, for the album grid.
+ * `thumb` carries both photo URI sources so `usePhotoUri` can fall back to a signed
+ * Storage URL — a cloud-restored photo has `storagePath` but no `localUri`.
+ */
 export type CategorySummary = {
   id: string;
   name: string;
   placeCount: number;
-  thumb: string | null;
+  thumb: Pick<Photo, 'localUri' | 'storagePath'> | null;
 };

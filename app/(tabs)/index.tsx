@@ -67,6 +67,7 @@ export default function CaptureScreen() {
     }
     const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
     if (!result.canceled) {
+      // Copy out of the picker's cache directory right away — the OS can purge it.
       setPhotoUris(await persistPhotos(result.assets.map((asset) => asset.uri)));
     }
   }

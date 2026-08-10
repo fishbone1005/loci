@@ -2,7 +2,7 @@
   "expo": {
     "name": "loci",
     "slug": "loci",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "loci",
@@ -12,6 +12,7 @@
     },
     "android": {
       "package": "com.fishbone1005.loci",
+      "versionCode": 1,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

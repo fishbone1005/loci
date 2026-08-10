@@ -1,5 +1,6 @@
 import * as Crypto from 'expo-crypto';
 import { getDb } from './client';
+import { supabase } from '../supabase/client';
 import type { Category, PlaceCategory, CategorySummary } from '../types';
 
 function nowIso(): string {
@@ -31,26 +32,39 @@ export function listCategories(): Category[] {
 export function listCategoriesWithCounts(): CategorySummary[] {
   const db = getDb();
   const categories = db.getAllSync<any>('SELECT * FROM categories ORDER BY name COLLATE NOCASE ASC', []);
-  return categories.map((row: any) => {
-    const countRow = db.getFirstSync<any>('SELECT COUNT(*) as count FROM place_categories WHERE category_id = ?', [
-      row.id,
-    ]);
-    const thumbRow = db.getFirstSync<any>(
-      `SELECT photos.local_uri as local_uri FROM place_categories
-       JOIN places ON places.id = place_categories.place_id
-       LEFT JOIN photos ON photos.place_id = places.id AND photos.sort_order = 0
-       WHERE place_categories.category_id = ?
-       ORDER BY places.created_at DESC
-       LIMIT 1`,
-      [row.id]
-    );
-    return {
-      id: row.id,
-      name: row.name,
-      placeCount: countRow?.count ?? 0,
-      thumb: thumbRow?.local_uri ?? null,
-    };
-  });
+  return (
+    categories
+      .map((row: any) => {
+        // Joined to `places` so join rows left over from a pre-fix delete can't
+        // inflate the count with places that no longer exist.
+        const countRow = db.getFirstSync<any>(
+          `SELECT COUNT(*) as count FROM place_categories
+           JOIN places ON places.id = place_categories.place_id
+           WHERE place_categories.category_id = ?`,
+          [row.id]
+        );
+        const thumbRow = db.getFirstSync<any>(
+          `SELECT photos.local_uri as local_uri, photos.storage_path as storage_path FROM place_categories
+           JOIN places ON places.id = place_categories.place_id
+           LEFT JOIN photos ON photos.place_id = places.id AND photos.sort_order = 0
+           WHERE place_categories.category_id = ?
+           ORDER BY places.created_at DESC
+           LIMIT 1`,
+          [row.id]
+        );
+        return {
+          id: row.id,
+          name: row.name,
+          placeCount: countRow?.count ?? 0,
+          // Carries storagePath too so `usePhotoUri` can fall back to a signed URL
+          // for cloud-restored photos, which have no local file.
+          thumb: thumbRow ? { localUri: thumbRow.local_uri, storagePath: thumbRow.storage_path } : null,
+        };
+      })
+      // Empty categories (typos, abandoned captures) go invisible instead of
+      // needing a delete UI — the spec deliberately has no category management screen.
+      .filter((summary) => summary.placeCount > 0)
+  );
 }
 
 export function listCategoriesForPlace(placeId: string): Category[] {
@@ -67,6 +81,20 @@ export function listCategoriesForPlace(placeId: string): Category[] {
 /** Replaces a place's full set of category assignments with exactly `categoryIds`. */
 export function assignCategories(placeId: string, categoryIds: string[]): void {
   const db = getDb();
+  // Untagging is a local delete, and the push path only ever upserts — without this
+  // the removed row survives remotely and the next pull resurrects it at synced = 1.
+  // Scoped to the categories being dropped, not all of the place's rows, so it stays
+  // correct even if it lands after runSync() has already pushed the new set.
+  // Fire-and-forget, same as deletePlace: this stays a synchronous, offline-safe write.
+  // ponytail: no tombstone queue — an offline untag won't retry; add one if it bites.
+  const remoteDelete = supabase.from('place_categories').delete().eq('place_id', placeId);
+  (categoryIds.length > 0
+    ? remoteDelete.not('category_id', 'in', `(${categoryIds.join(',')})`)
+    : remoteDelete
+  ).then(
+    () => {},
+    () => {}
+  );
   db.runSync('DELETE FROM place_categories WHERE place_id = ?', [placeId]);
   categoryIds.forEach((categoryId) => {
     db.runSync('INSERT INTO place_categories (place_id, category_id, synced) VALUES (?, ?, 0)', [
@@ -91,7 +119,12 @@ export function markCategorySynced(id: string): void {
 }
 
 export function listUnsyncedPlaceCategories(): PlaceCategory[] {
-  const rows = getDb().getAllSync<any>('SELECT * FROM place_categories WHERE synced = 0', []);
+  // Same owner guard as listUnsyncedPlaces/listUnsyncedCategories: a row whose place
+  // is unowned (logged out) or gone can never pass RLS, so don't retry it every sync.
+  const rows = getDb().getAllSync<any>(
+    'SELECT * FROM place_categories WHERE synced = 0 AND place_id IN (SELECT id FROM places WHERE user_id IS NOT NULL)',
+    []
+  );
   return rows.map(rowToPlaceCategory);
 }
 

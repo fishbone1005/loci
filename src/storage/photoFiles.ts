@@ -38,7 +38,7 @@ export async function persistPhotos(uris: string[]): Promise<string[]> {
  * otherwise a short-lived signed Storage URL (cloud-restored photos have
  * `storagePath` but no local file yet).
  */
-export function usePhotoUri(photo: Photo | null | undefined): string | null {
+export function usePhotoUri(photo: Pick<Photo, 'localUri' | 'storagePath'> | null | undefined): string | null {
   const [uri, setUri] = useState<string | null>(photo?.localUri ?? null);
 
   useEffect(() => {
