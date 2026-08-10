@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { ScrollView, View, Text, Image, TextInput, Pressable, Alert, StyleSheet, Dimensions } from 'react-native';
+import { ScrollView, View, Text, Image, TextInput, Pressable, Alert, StyleSheet, Dimensions, Linking, Platform } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, router } from 'expo-router';
 import { colors, fonts, spacing } from '../../src/theme/tokens';
 import { getPlaceWithPhotos, updatePlace, deletePlace } from '../../src/db/placesRepo';
@@ -63,6 +64,36 @@ export default function PlaceDetailScreen() {
     setPlace({ ...place, name, address, memo });
   }
 
+  async function copyAddress() {
+    if (!place) return;
+    await Clipboard.setStringAsync(place.address);
+    Alert.alert('주소를 복사했어요');
+  }
+
+  function openInMaps() {
+    if (!place) return;
+    const label = encodeURIComponent(place.name);
+    const query = encodeURIComponent(place.address);
+    const hasCoords = place.latitude != null && place.longitude != null;
+    const fallback = `https://maps.google.com/?q=${query}`;
+    const url =
+      Platform.select({
+        ios: hasCoords ? `maps://?ll=${place.latitude},${place.longitude}&q=${label}` : `maps://?q=${query}`,
+        android: hasCoords ? `geo:${place.latitude},${place.longitude}?q=${place.latitude},${place.longitude}(${label})` : `geo:0,0?q=${query}`,
+        default: fallback,
+      }) ?? fallback;
+    Linking.openURL(url).catch(() => Linking.openURL(fallback));
+  }
+
+  function openAddressOptions() {
+    if (!place || !place.address) return;
+    Alert.alert('주소', undefined, [
+      { text: '주소 복사', onPress: copyAddress },
+      { text: '지도에서 보기', onPress: openInMaps },
+      { text: '취소', style: 'cancel' },
+    ]);
+  }
+
   function confirmDelete() {
     if (!place) return;
     Alert.alert('삭제할까요?', `"${place.name}" 기록을 삭제합니다.`, [
@@ -115,7 +146,9 @@ export default function PlaceDetailScreen() {
         ) : (
           <>
             <Text style={styles.name}>{place.name}</Text>
-            <Text style={styles.addr}>{place.address}</Text>
+            <Pressable onPress={openAddressOptions}>
+              <Text style={styles.addr}>{place.address}</Text>
+            </Pressable>
             <Text style={styles.memo}>{place.memo}</Text>
           </>
         )}

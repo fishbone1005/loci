@@ -20,4 +20,14 @@ describe('formatAddress', () => {
   test('returns empty string when nothing is available', () => {
     expect(formatAddress({})).toBe('');
   });
+
+  test('collapses a district that is also a prefix of the street (lot-number addresses)', () => {
+    expect(
+      formatAddress({ region: '제주특별자치도', city: '제주시', district: '일도이동', street: '일도이동 389-1' })
+    ).toBe('제주특별자치도 제주시 일도이동 389-1');
+  });
+
+  test('collapses when the shorter duplicate appears after the longer one', () => {
+    expect(formatAddress({ street: '일도이동 389-1', name: '일도이동' })).toBe('일도이동 389-1');
+  });
 });

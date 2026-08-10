@@ -8,6 +8,7 @@
     "@react-native-community/netinfo": "11.4.1",
     "@supabase/supabase-js": "^2.112.2",
     "expo": "54",
+    "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-crypto": "~15.0.9",
     "expo-file-system": "~19.0.23",
